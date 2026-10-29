@@ -1,44 +1,99 @@
-const express = require('express');
 
-// `users-model.js` ve `posts-model.js` sayfalarına ihtiyacınız var
-// ara yazılım fonksiyonları da gereklidir
+const express = require('express');
+const Users = require('./users-model');
+const Posts = require('../posts/posts-model');
+
+const {
+  validateUserId,
+  validateUser,
+  validatePost,
+} = require('../middleware/middleware');
 
 const router = express.Router();
 
-router.get('/', (req, res) => {
-  // TÜM KULLANICILARI İÇEREN DİZİYİ DÖNDÜRÜN
+// GET /api/users
+router.get('/', async (req, res, next) => {
+  try {
+    const users = await Users.get();
+    res.status(200).json(users);
+  } catch (error) {
+    next(error);
+  }
 });
 
+// POST /api/users
+router.post('/', validateUser, async (req, res, next) => {
+  try {
+    const user = await Users.insert(req.body);
+    res.status(201).json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ID içeren tüm kullanıcı endpointleri
+router.use('/:id', validateUserId);
+
+// GET /api/users/:id
 router.get('/:id', (req, res) => {
-  // USER NESNESİNİ DÖNDÜRÜN
-  // user id yi getirmek için bir ara yazılım gereklidir
+  res.status(200).json(req.user);
 });
 
-router.post('/', (req, res) => {
-  // YENİ OLUŞTURULAN USER NESNESİNİ DÖNDÜRÜN
-  // istek gövdesini doğrulamak için ara yazılım gereklidir.
+// PUT /api/users/:id
+router.put('/:id', validateUser, async (req, res, next) => {
+  try {
+    const user = await Users.update(
+      req.params.id,
+      req.body
+    );
+
+    res.status(200).json(user);
+  } catch (error) {
+    next(error);
+  }
 });
 
-router.put('/:id', (req, res) => {
-  // YENİ GÜNCELLENEN USER NESNESİNİ DÖNDÜRÜN
-  // user id yi doğrulayan ara yazılım gereklidir
-  // ve istek gövdesini doğrulayan bir ara yazılım gereklidir.
+// DELETE /api/users/:id
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const deleted = await Users.remove(req.params.id);
+    res.status(200).json({ deleted });
+  } catch (error) {
+    next(error);
+  }
 });
 
-router.delete('/:id', (req, res) => {
-  // SON SİLİNEN USER NESNESİ DÖNDÜRÜN
-  // user id yi doğrulayan bir ara yazılım gereklidir.
+// GET /api/users/:id/posts
+router.get('/:id/posts', async (req, res, next) => {
+  try {
+    const posts = await Users.getUserPosts(
+      req.params.id
+    );
+
+    res.status(200).json(posts);
+  } catch (error) {
+    next(error);
+  }
 });
 
-router.get('/:id/posts', (req, res) => {
-  // USER POSTLARINI İÇEREN BİR DİZİ DÖNDÜRÜN
-  // user id yi doğrulayan bir ara yazılım gereklidir.
-});
+// POST /api/users/:id/posts
+router.post(
+  '/:id/posts',
+  validatePost,
+  async (req, res, next) => {
+    try {
+      const post = {
+        text: req.body.text,
+        user_id: req.user.id,
+      };
 
-router.post('/:id/posts', (req, res) => {
-  // YENİ OLUŞTURULAN KULLANICI NESNESİNİ DÖNDÜRÜN
-  // user id yi doğrulayan bir ara yazılım gereklidir.
-  // ve istek gövdesini doğrulayan bir ara yazılım gereklidir.
-});
+      const newPost = await Posts.insert(post);
 
-// routerı dışa aktarmayı unutmayın
+      res.status(201).json(newPost);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+module.exports = router;
